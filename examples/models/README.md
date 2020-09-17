@@ -5,11 +5,11 @@ The Nvidia backend for DNNL can be exposed to the user via the `dnnl::engine::ki
 
 ## Requirements for Building from source
 
-- oneDNN Nvidia backend requires Intel oneAPI DPC++ Compiler, details of aquiring and installing it is available https://github.com/mehdi-goli/oneDNN/blob/codeplay-onednn-nvidia-support/README.md
+- oneDNN Nvidia backend requires Intel oneAPI DPC++ Compiler, details of aquiring and installing it is available https://github.com/codeplaysoftware/oneDNN/blob/dev-v2-nvidia-support/README.md 
 - git-lfs is required to checkout the build
 
 ```
-$ git clone https://github.com/mehdi-goli/oneDNN.git -b codeplay-onednn-nvidia-support
+$ git clone https://github.com/codeplaysoftware/oneDNN.git -b dev-v2-nvidia-support
 $ cd oneDNN
 $ git submodule update --init --recursive
 ```
