@@ -37,8 +37,6 @@ using namespace dnnl;
 using tag = memory::format_tag;
 using dt = memory::data_type;
 
-memory::dim BATCH = 1;
-
 void hash_and_print(std::vector<float> const &tensor, bool print, int limit,
         int hash_limit = -1) {
     double accum = 0;
@@ -188,7 +186,7 @@ void do_ip(engine &eng, std::vector<primitive> &net,
 
 void set_up_vgg(engine &eng, stream &s, std::vector<primitive> &net,
         std::vector<std::unordered_map<int, memory>> &net_args,
-        std::vector<char> &input_image) {
+        std::vector<char> &input_image, memory::dim batch_size = 16) {
 #define STAMP_OUT_WEIGHTS_CONV(BLOCK_NUMBER, INDEX, WEI_DIMS, BIA_DIMS) \
     std::vector<char> weights_##BLOCK_NUMBER##_##INDEX( \
             product(WEI_DIMS) * sizeof(float)); \
@@ -199,7 +197,7 @@ void set_up_vgg(engine &eng, stream &s, std::vector<primitive> &net,
             biases_##BLOCK_NUMBER##_##INDEX.data(), product(BIA_DIMS));
 
     /* Convolution dims */
-    memory::dim IC = 3, OC = 64, WIDTH = 224, HEIGHT = 224;
+    memory::dim BATCH = batch_size, IC = 3, OC = 64, WIDTH = 224, HEIGHT = 224;
 
     memory::dims conv1_strides = {1, 1};
     memory::dims conv1_padding = {1, 1};
@@ -566,7 +564,7 @@ void check_vgg(engine &eng, stream &s, std::vector<primitive> &net,
     run_vgg(eng, s, net, net_args, input_image, 1);
 }
 
-void do_it(engine::kind engine_kind) {
+void do_it(engine::kind engine_kind, memory::dim batch_size = 16) {
     engine eng(engine_kind, 0);
     stream s(eng);
 
@@ -575,18 +573,18 @@ void do_it(engine::kind engine_kind) {
 
     std::vector<char> input_image;
 
-    std::cout << "Setting up... for BATCH SIZE = " << BATCH << "\n";
-    set_up_vgg(eng, s, net, net_args, input_image);
-    //     int times = 1;
-    //     std::cout << "Warming up...\n";
-    //     run_vgg(eng, s, net, net_args, input_image, 0);
+    std::cout << "Setting up... for BATCH SIZE = " << batch_size << "\n";
+    set_up_vgg(eng, s, net, net_args, input_image, batch_size);
+    int times = 5;
+    std::cout << "Warming up...\n";
+    run_vgg(eng, s, net, net_args, input_image, 0);
 
     std::cout << "Timing...\n";
     auto begin = std::chrono::duration_cast<std::chrono::milliseconds>(
             std::chrono::steady_clock::now().time_since_epoch())
                          .count();
 
-    int times = 100;
+    times = 100;
     run_vgg(eng, s, net, net_args, input_image, times);
     auto end = std::chrono::duration_cast<std::chrono::milliseconds>(
             std::chrono::steady_clock::now().time_since_epoch())
@@ -597,7 +595,6 @@ void do_it(engine::kind engine_kind) {
 
 int main(int argc, char **argv) {
     for (int i = 1; i <= 64; i *= 2) {
-        BATCH = i;
-        do_it(parse_engine_kind(argc, argv));
+        do_it(parse_engine_kind(argc, argv), i);
     }
 }

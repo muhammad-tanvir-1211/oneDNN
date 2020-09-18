@@ -37,8 +37,6 @@ using namespace dnnl;
 using tag = memory::format_tag;
 using dt = memory::data_type;
 
-memory::dim BATCH = 1;
-
 void dump_to_file(std::vector<float> &data, std::string fname) {
     // Check correctness
     std::stringstream ss;
@@ -295,25 +293,6 @@ memory::desc do_input_padding(memory &input, std::vector<float> &new_data,
         }
     }
 
-    // Check correctness
-
-    //     for (size_t n = 0; n < new_N; n++) {
-    //         for (size_t c = 0; c < new_C; c++) {
-    //             for (size_t h = 0; h < new_H; h++) {
-    //                 for (size_t w = 0; w < new_W; w++) {
-    //                     size_t new_ofs = n * new_C * new_H * new_W
-    //                             + c * new_H * new_W
-    //                             + (h /* + 2 * padding_l[0] */) * new_W
-    //                             + (w /* + 2 * padding_l[1] */);
-    //                     if ((w >= new_W - 2 || h >= new_H - 2)
-    //                             && new_data[new_ofs] != 0) {
-    //                         printf("\n\n\n\n\nFAILURE!!!!\n\n\n\n\n");
-    //                     }
-    //                 }
-    //             }
-    //         }
-    //     }
-
     return memory::desc(new_dims, dt::f32, tag::nhwc);
 }
 void do_pool(engine &eng, std::vector<primitive> &net,
@@ -475,7 +454,6 @@ public:
                 false);
         do_bnorm(eng, net, net_args, mean_data_.data(), var_data_.data(),
                 scale_shift_data_.data(), params.oc, dst_mem_);
-        // do_reorder(eng, net, net_args, dst_mem_nchw_, dst_mem_);
         if (params.with_relu) { do_relu(eng_, net_, net_args_, dst_mem_); }
     }
 
@@ -504,11 +482,13 @@ private:
     memory::dims dst_dims_;
 };
 
-void res_net(engine::kind engine_kind, int times = 100) {
+void res_net(engine::kind engine_kind, int times = 100,
+        memory::dim batch_size = 16) {
 
     engine eng(engine_kind, 0);
     stream s(eng);
 
+    memory::dim BATCH = batch_size;
     std::vector<primitive> net;
     std::vector<std::unordered_map<int, memory>> net_args;
 
@@ -1166,15 +1146,14 @@ void res_net(engine::kind engine_kind, int times = 100) {
     s.wait();
 }
 
-void do_it(engine::kind engine_kind) {
+void do_it(engine::kind engine_kind, memory::dim batch_size = 16) {
 
     int times = 1000;
-    res_net(engine_kind, times);
+    res_net(engine_kind, times, batch_size);
 }
 
 int main(int argc, char **argv) {
     for (int i = 1; i <= 64; i *= 2) {
-        BATCH = i;
-        do_it(parse_engine_kind(argc, argv));
+        do_it(parse_engine_kind(argc, argv), i);
     }
 }
