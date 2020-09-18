@@ -539,38 +539,10 @@ void set_up_vgg(engine &eng, stream &s, std::vector<primitive> &net,
 
     for (size_t i = 0; i < net.size(); ++i) {
         net[i].execute(s, net_args[i]);
-        // auto dst_mem = net_args.at(i).at(DNNL_ARG_DST);
-        // std::vector<float> temp(dst_mem.get_desc().get_size() /
-        // sizeof(float)); read_from_dnnl_memory(temp.data(), dst_mem); auto
-        // kind = net.at(i).get_kind(); std::string kind_str; switch (kind) {
-        //     case dnnl::primitive::kind::convolution:
-        //         kind_str = "Convolution: ";
-        //         break;
-        //     case dnnl::primitive::kind::eltwise: kind_str = "Eltwise: ";
-        //     break; case dnnl::primitive::kind::pooling: kind_str = "Pooling:
-        //     "; break; case dnnl::primitive::kind::batch_normalization:
-        //         kind_str = "Bnorm: ";
-        //         break;
-        //     case dnnl::primitive::kind::inner_product:
-        //         kind_str = "Inner Product: ";
-        //         break;
-        // }
-        // std::cout << kind_str << std::endl;
-        // hash_and_print(temp, true, 10);
     }
 
     // Wait for completion.
     s.wait();
-    std::vector<float> result(product(ip3_dst_mem.get_desc().dims()));
-    read_from_dnnl_memory(result.data(), ip3_dst_mem);
-    for (size_t i = 0; i < BATCH; i++) {
-        auto index = std::max_element(
-                result.begin() + i * 1000, result.begin() + (i + 1) * 1000);
-        //std::cout << "classed as "
-        //          << std::distance(result.begin() + i * 1000, index)
-        //          << ", value " << (index != std::end(result) ? *index : 0.f)
-        //          << std::endl;
-    }
 
 #undef STAMP_OUT_WEIGHTS_CONV
 }
@@ -613,7 +585,7 @@ void do_it(engine::kind engine_kind) {
     auto begin = std::chrono::duration_cast<std::chrono::milliseconds>(
             std::chrono::steady_clock::now().time_since_epoch())
                          .count();
-    // FIXME: revert to 100
+
     int times = 100;
     run_vgg(eng, s, net, net_args, input_image, times);
     auto end = std::chrono::duration_cast<std::chrono::milliseconds>(

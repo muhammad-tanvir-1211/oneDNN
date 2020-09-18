@@ -17,7 +17,6 @@
  *
  **************************************************************************/
 
-
 #include <assert.h>
 #include <chrono>
 #include <fstream>
@@ -172,50 +171,6 @@ void load_bnorm(int layer_index, void *mean_data, int mean_size, void *var_data,
     load_weights_conv(INDEX, weights_##INDEX.data(), product(WEI_DIMS), \
             biases_##INDEX.data(), product(BIA_DIMS))
 
-#define STAMP_OUT_WEIGHTS_CONV_BRANCHED(LAYER_INDEX, BLOCK_INDEX, \
-        BRANCH_INDEX, SUB_BRANCH_INDEX, WEI_DIMS, BIA_DIMS) \
-    std::vector<float> \
-            weights_##LAYER_INDEX##_##BLOCK_INDEX##_##BRANCH_INDEX##_##SUB_BRANCH_INDEX( \
-                    product(WEI_DIMS)); \
-    std::vector<float> \
-            biases_##LAYER_INDEX##_##BLOCK_INDEX##_##BRANCH_INDEX##_##SUB_BRANCH_INDEX( \
-                    product(BIA_DIMS)); \
-    load_weights_conv_branched(LAYER_INDEX, BLOCK_INDEX, BRANCH_INDEX, \
-            SUB_BRANCH_INDEX, \
-            weights_##LAYER_INDEX##_##BLOCK_INDEX##_##BRANCH_INDEX##_##SUB_BRANCH_INDEX \
-                    .data(), \
-            product(WEI_DIMS), \
-            biases_##LAYER_INDEX##_##BLOCK_INDEX##_##BRANCH_INDEX##_##SUB_BRANCH_INDEX \
-                    .data(), \
-            product(BIA_DIMS))
-
-#define STAMP_OUT_BNORM_BRANCHED( \
-        LAYER_INDEX, BLOCK_INDEX, BRANCH_INDEX, SUB_BRANCH_INDEX, C) \
-    std::vector<float> \
-            mean_##LAYER_INDEX##_##BLOCK_INDEX##_##BRANCH_INDEX##_##SUB_BRANCH_INDEX( \
-                    C); \
-    std::vector<float> \
-            var_##LAYER_INDEX##_##BLOCK_INDEX##_##BRANCH_INDEX##_##SUB_BRANCH_INDEX( \
-                    C); \
-    std::vector<float> \
-            scale_shift_##LAYER_INDEX##_##BLOCK_INDEX##_##BRANCH_INDEX##_##SUB_BRANCH_INDEX( \
-                    2 * C); \
-    load_bnorm_branched(LAYER_INDEX, BLOCK_INDEX, BRANCH_INDEX, \
-            SUB_BRANCH_INDEX, \
-            mean_##LAYER_INDEX##_##BLOCK_INDEX##_##BRANCH_INDEX##_##SUB_BRANCH_INDEX \
-                    .data(), \
-            C, \
-            var_##LAYER_INDEX##_##BLOCK_INDEX##_##BRANCH_INDEX##_##SUB_BRANCH_INDEX \
-                    .data(), \
-            C, \
-            scale_shift_##LAYER_INDEX##_##BLOCK_INDEX##_##BRANCH_INDEX##_##SUB_BRANCH_INDEX \
-                    .data(), \
-            C, \
-            scale_shift_##LAYER_INDEX##_##BLOCK_INDEX##_##BRANCH_INDEX##_##SUB_BRANCH_INDEX \
-                            .data() \
-                    + C, \
-            2 * C)
-
 #define STAMP_OUT_BNORM(LAYER_INDEX, C) \
     std::vector<float> mean_##LAYER_INDEX(C); \
     std::vector<float> var_##LAYER_INDEX(C); \
@@ -223,6 +178,7 @@ void load_bnorm(int layer_index, void *mean_data, int mean_size, void *var_data,
     load_bnorm(LAYER_INDEX, mean_##LAYER_INDEX.data(), C, \
             var_##LAYER_INDEX.data(), C, scale_shift_##LAYER_INDEX.data(), C, \
             scale_shift_##LAYER_INDEX.data() + C, C)
+
 void do_reorder(engine &eng, std::vector<primitive> &net,
         std::vector<std::unordered_map<int, memory>> &net_args, memory &src,
         memory &dst) {
@@ -235,6 +191,7 @@ void do_reorder(engine &eng, std::vector<primitive> &net,
     net.push_back(reorder(reorder_pd));
     net_args.push_back({{DNNL_ARG_SRC, src}, {DNNL_ARG_DST, dst}});
 }
+
 void do_bnorm(engine &eng, std::vector<primitive> &net,
         std::vector<std::unordered_map<int, memory>> &net_args, void *mean_data,
         void *var_data, void *scale_shift_data, int oc, memory &data_mem) {
@@ -264,29 +221,23 @@ void do_bnorm(engine &eng, std::vector<primitive> &net,
             {DNNL_ARG_SCALE_SHIFT, scale_shift_memory},
             {DNNL_ARG_DST, data_mem}});
 }
-// NOTE: src_memory should have its data set *before* it is passed to this
-// function
+
 void do_conv(engine &eng, std::vector<primitive> &net,
         std::vector<std::unordered_map<int, memory>> &net_args,
         void *weights_data, void *bias_data, memory::dims &weights_dims,
         memory::dims &bias_dims, memory::dims &strides, memory::dims &padding,
         memory &src_memory, memory &dst_memory, bool with_bias = true) {
     auto weights_memory = memory({{weights_dims}, dt::f32, tag::ohwi}, eng);
-    //     auto weights_memory_nchw
-    //             = memory({{weights_dims}, dt::f32, tag::oihw}, eng);
     memory bias_memory;
     if (with_bias) bias_memory = memory({{bias_dims}, dt::f32, tag::x}, eng);
 
     write_to_dnnl_memory(weights_data, weights_memory);
-    //     do_reorder(eng, net, net_args, weights_memory, weights_memory_nchw);
     if (with_bias) write_to_dnnl_memory(bias_data, bias_memory);
 
     auto src_md = src_memory.get_desc();
     memory::desc bias_md = {};
     if (with_bias) bias_md = bias_memory.get_desc();
     auto weights_md = weights_memory.get_desc();
-    //     auto weights_md_nchw = memory::desc(weights_md.dims(), dt::f32,
-    //     tag::nchw);
     auto dst_md = dst_memory.get_desc();
 
     auto conv1_desc = convolution_forward::desc(prop_kind::forward_inference,
@@ -499,15 +450,8 @@ public:
         dst_dims_ = {params.batch, params.oc, params.oh, params.ow};
         weights_dims_ = {params.oc, params.ic, params.kh, params.kw};
         if (params.with_bias) bias_dims_ = {params.oc};
-        // auto src_md_nchw
-        //         = memory::desc {src_mem_.get_desc().dims(), dt::f32,
-        //         tag::nchw};
-        // src_mem_nchw_ = memory(src_md_nchw, eng);
-        // do_reorder(eng, net, net_args, src_mem_, src_mem_nchw_);
         auto dst_md = memory::desc(dst_dims_, dt::f32, tag::nhwc);
         dst_mem_ = memory(dst_md, eng);
-        // auto dst_md_nchw = memory::desc(dst_dims_, dt::f32, tag::nchw);
-        // dst_mem_nchw_ = memory(dst_md_nchw, eng);
 
         // Load conv data
         weights_data_.resize(product(weights_dims_));
@@ -516,7 +460,6 @@ public:
                 params.branch_id, params.branch_block_id, weights_data_.data(),
                 product(weights_dims_), bias_data_.data(), product(bias_dims_));
 
-        // hash_and_print(weights_data_, true, 10);
         // load bnorm data
         mean_data_.resize(params.oc);
         var_data_.resize(params.oc);
@@ -543,8 +486,6 @@ private:
     std::vector<primitive> &net_;
     std::vector<std::unordered_map<int, memory>> &net_args_;
     memory &src_mem_;
-    //     memory src_mem_nchw_;
-    //     memory dst_mem_nchw_;
     block_params params_;
 
     // Weights data
@@ -601,16 +542,6 @@ void res_net(engine::kind engine_kind, int times = 100) {
     auto conv1_src_md = memory::desc(conv1_src_dims, dt::f32, mem_format);
     auto conv1_src_memory = memory(conv1_src_md, eng);
     write_to_dnnl_memory(src_data_copied.data(), conv1_src_memory);
-    //     std::vector<float> test_data;
-    //     test_data.resize(product(conv1_src_dims));
-    //     read_from_dnnl_memory(test_data.data(), conv1_src_memory);
-    //     std::vector<float> padded_data;
-    //     memory::dims pad_r {3, 3};
-    //     auto conv1_src_md_padded = do_input_padding(
-    //             conv1_src_memory, padded_data, conv1_padding, pad_r);
-    //     auto conv1_src_mem_padded = memory(conv1_src_md_padded, eng);
-    //     conv1_padding = {0, 0};
-    //     write_to_dnnl_memory(padded_data.data(), conv1_src_mem_padded);
     auto conv1_dst_md = memory::desc(conv1_dst_dims, dt::f32, mem_format);
     auto conv1_dst_memory = memory(conv1_dst_md, eng);
     STAMP_OUT_WEIGHTS_CONV(1, conv1_weights_dims, conv1_bias_dims);
@@ -651,25 +582,6 @@ void res_net(engine::kind engine_kind, int times = 100) {
             56, 1, 1, {0, 0}, {1, 1}};
     res_net_block block_2a1(
             eng, net, net_args, pool1_dst_memory, block_2a1_params);
-    //     WIDTH = WIDTH / 2, HEIGHT = HEIGHT / 2;
-    //     IC = 64, OC = 256;
-    //     memory::dims res2a_strides = {1, 1};
-    //     memory::dims res2a_padding = {0, 0};
-    //     memory::dims res2a_src_dims = {BATCH, IC, WIDTH, HEIGHT};
-    //     memory::dims res2a_dst_dims = {BATCH, OC, WIDTH, HEIGHT};
-    //     memory::dims res2a_weights_dims = {OC, IC, 1, 1};
-    //     memory::dims res2a_bias_dims = {};
-
-    //     auto res2a_dst_md = memory::desc(res2a_dst_dims, dt::f32,
-    //     mem_format); auto res2a_dst_memory = memory(res2a_dst_md, eng);
-    //     STAMP_OUT_WEIGHTS_CONV_BRANCHED(
-    //             2, 1, 1, 0, res2a_weights_dims, res2a_bias_dims);
-    //     STAMP_OUT_BNORM_BRANCHED(2, 1, 1, 0, OC);
-    //     do_conv(eng, net, net_args, weights_2_1_1_0.data(), nullptr,
-    //             res2a_weights_dims, res2a_bias_dims, res2a_strides,
-    //             res2a_padding, pool1_dst_memory, res2a_dst_memory);
-    //     do_bnorm(eng, net, net_args, mean_2_1_1_0.data(), var_2_1_1_0.data(),
-    //             scale_shift_2_1_1_0.data(), OC, res2a_dst_memory);
 
     /* -----------------res2a_branch2----------------- */
     /* -----------------conv > bnorm > scale > relu----------------- */
@@ -1231,30 +1143,18 @@ void res_net(engine::kind engine_kind, int times = 100) {
     for (size_t j = 0; j < 5; j++) {
 
         for (size_t i = 0; i < net.size(); ++i) {
-
             net.at(i).execute(s, net_args.at(i));
-            // auto dst_mem = net_args.at(i).at(DNNL_ARG_DST);
-            // std::vector<float> dst_data(product(dst_mem.get_desc().dims()));
-            // read_from_dnnl_memory(dst_data.data(), dst_mem);
-            // check_batch(dst_data, BATCH);
         }
     }
     s.wait();
     std::cout << "Benchmarking now...\n";
-    // Execute model
-    //std::cout << "\n###########################################################"
-    //             "#############################################################"
-    //             "#############################################################"
-    //             "#########\n";
 
     auto begin = std::chrono::high_resolution_clock::now();
     for (int j = 0; j < times; ++j) {
-        // assert(net.size() == net_args.size() && "something is missing");
         for (size_t i = 0; i < net.size(); ++i) {
 
             net.at(i).execute(s, net_args.at(i));
         }
-        // s.get_sycl_queue().wait();
     }
     auto end = std::chrono::high_resolution_clock::now();
     std::cout << "Use time: "
@@ -1264,22 +1164,10 @@ void res_net(engine::kind engine_kind, int times = 100) {
                     / (1e6 * static_cast<double>(times))
               << " ms per iteration." << std::endl;
     s.wait();
-    // Execute model
-    std::vector<float> result(product(ip_dst_mem.get_desc().dims()));
-    read_from_dnnl_memory(result.data(), ip_dst_mem);
-    for (size_t i = 0; i < BATCH; i++) {
-        auto index = std::max_element(
-                result.begin() + i * 1000, result.begin() + (i + 1) * 1000);
-        //std::cout << "classed as "
-        //          << std::distance(result.begin() + i * 1000, index)
-        //          << ", value " << (index != std::end(result) ? *index : 0.f)
-        //          << std::endl;
-    }
 }
 
 void do_it(engine::kind engine_kind) {
 
-    // FIXME: revert to 100
     int times = 1000;
     res_net(engine_kind, times);
 }
@@ -1287,7 +1175,6 @@ void do_it(engine::kind engine_kind) {
 int main(int argc, char **argv) {
     for (int i = 1; i <= 64; i *= 2) {
         BATCH = i;
-        /* return handle_example_errors( */ do_it(
-                parse_engine_kind(argc, argv));
+        do_it(parse_engine_kind(argc, argv));
     }
 }
