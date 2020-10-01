@@ -11,7 +11,6 @@ The Nvidia backend for DNNL can be exposed to the user via the `dnnl::engine::ki
 ```
 $ git clone https://github.com/codeplaysoftware/oneDNN.git -b dev-v2-nvidia-support
 $ cd oneDNN
-$ git submodule update --init --recursive
 ```
 
 The Nvidia backend requires 
@@ -19,6 +18,8 @@ The Nvidia backend requires
 - cuBLAS library version  10.1 or 1.2,  
 - cuDNN library version 7.6.5.
 - `LD_LIBRARY_PATH` should be set to `/Path/to/dpcpp/lib`
+
+To obtain the weights needed for running the models see ```trained_weights/README.md```. These must be obtained prior to building the project as CMake will move them to the correct location when running.
 
 ## Commands to run on Nvidia GPU
 
