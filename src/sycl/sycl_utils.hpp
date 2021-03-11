@@ -24,6 +24,7 @@
 
 #include <vector>
 #include <CL/sycl.hpp>
+#include <CL/sycl/backend/cuda.hpp>
 
 #include "sycl/level_zero_utils.hpp"
 
@@ -151,6 +152,14 @@ inline bool are_equal(
         auto lhs_ocl_dev = gpu::ocl::make_ocl_wrapper(lhs.get());
         auto rhs_ocl_dev = gpu::ocl::make_ocl_wrapper(rhs.get());
         return lhs_ocl_dev == rhs_ocl_dev;
+    }
+
+    // Compare native CUDA device IDs for CUDA backend
+    if (lhs_be == backend_t::nvidia) {
+        // Native CUDA objects are not reference counted.
+        auto lhs_cuda_dev = lhs.get_native<cl::sycl::backend::cuda>();
+        auto rhs_cuda_dev = rhs.get_native<cl::sycl::backend::cuda>();
+        return lhs_cuda_dev == rhs_cuda_dev;
     }
 
     // Other backends do not retain the returned handles.
