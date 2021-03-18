@@ -31,6 +31,7 @@ CHECK_CXX_COMPILER_FLAG(-fsycl DPCPP_SUPPORTED)
 find_package(LevelZero)
 
 if(DPCPP_SUPPORTED)
+    set(CMAKE_CXX_STANDARD 14)
     if(LevelZero_FOUND)
         message(STATUS "DPC++ support is enabled (OpenCL and Level Zero)")
     else()
