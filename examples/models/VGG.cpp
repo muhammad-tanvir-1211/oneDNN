@@ -96,7 +96,7 @@ memory do_conv(engine &eng, stream &s, std::vector<primitive> &net,
 
     auto src_md = src_memory.get_desc();
     auto conv_desc = convolution_forward::desc(prop_kind::forward_inference,
-            algorithm::convolution_winograd, src_md, weights_md, bias_md, dst_md,
+            algorithm::convolution_auto, src_md, weights_md, bias_md, dst_md,
             strides, padding, padding);
     auto prim_desc = convolution_forward::primitive_desc(conv_desc, eng);
 
@@ -140,7 +140,7 @@ memory do_conv(engine &eng, stream &s, std::vector<primitive> &net,
     auto bias_md = memory::desc{{bias_dims}, dt::f32, tag::any};
 
     auto conv_desc = convolution_forward::desc(prop_kind::forward_inference,
-            algorithm::convolution_winograd, src_md, weights_md, bias_md, dst_md,
+            algorithm::convolution_auto, src_md, weights_md, bias_md, dst_md,
             strides, padding, padding);
     auto prim_desc = convolution_forward::primitive_desc(conv_desc, eng);
 

@@ -61,8 +61,12 @@ if(DNNL_SYCL_CUDA)
 endif()
 
 if(DNNL_SYCL_HIP)
-    # There are no yet implemented primitives that are used in the examples.
+    # Build examples for supported primitives that support required features.
     set(sources)
+    list(APPEND sources
+        ${CMAKE_CURRENT_SOURCE_DIR}/primitives/softmax.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/primitives/lrn.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/primitives/eltwise.cpp)
 endif()
 
 # Skip SYCL, GPU and cross-engine examples
@@ -162,10 +166,16 @@ add_custom_target(
     ${PROJECT_SOURCE_DIR}/trained_weights/kangaroo.jpg.bin
     ${CMAKE_BINARY_DIR}/examples/kangaroo.jpg.bin
   COMMAND
+    ${CMAKE_COMMAND} -E copy_directory
+    ${PROJECT_SOURCE_DIR}/trained_weights/resnet50_transposed_param_files
+    ${CMAKE_BINARY_DIR}/examples/resnet50_transposed_param_files
+  COMMAND
     ${CMAKE_COMMAND} -E copy
     ${PROJECT_SOURCE_DIR}/trained_weights/grace_hopper_nhwc.bin
     ${CMAKE_BINARY_DIR}/examples/grace_hopper_nhwc.bin)
+
 add_dependencies(models-VGG-cpp copy_dataset)
+add_dependencies(models-ResNet50-cpp copy_dataset)
 
 
 add_custom_target(
@@ -174,4 +184,11 @@ add_custom_target(
   COMMENT "Running VGG..."
   USES_TERMINAL)
 
+add_custom_target(
+  run_resnet
+  COMMAND models-ResNet50-cpp gpu
+  COMMENT "Running ResNet..."
+  USES_TERMINAL)
+
 add_dependencies(run_vgg copy_dataset)
+add_dependencies(run_resnet copy_dataset)
