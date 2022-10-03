@@ -598,8 +598,8 @@ void res_net(engine::kind engine_kind, int times = 100,
     std::vector<char> src_data(src_size * sizeof(float));
 
     tag mem_format = tag::nhwc;
-    std::string image_filename = "grace_hopper_nhwc.bin";
-    //std::string image_filename = "kangaroo.jpg.bin";
+    //std::string image_filename = "grace_hopper_nhwc.bin";
+    std::string image_filename = "/tmp/weights/samples/10.jpg.bin";
     read_binary_data(src_data.data(), src_size, image_filename);
     std::vector<char> src_data_copied;
     src_data_copied.reserve(src_data.size() * BATCH);
@@ -1228,19 +1228,19 @@ void res_net(engine::kind engine_kind, int times = 100,
     }
     s.wait();
     auto end = std::chrono::high_resolution_clock::now();
-    std::cout << "Use time: "
-              << std::chrono::duration_cast<std::chrono::nanoseconds>(
-                         end - begin)
-                            .count()
-                    / (1e6 * static_cast<double>(times))
-              << " ms per iteration." << std::endl;
-    
+ 
     std::vector<float> result(1000);
     read_from_dnnl_memory(result.data(), ip_dst_mem);
     auto index = std::max_element(result.begin(), result.end());
     std::cout << "classed as " << std::distance(result.begin(), index)
               << ", value " << (index != std::end(result) ? *index : 0.f)
               << std::endl;
+    std::cout << "Use time: "
+              << std::chrono::duration_cast<std::chrono::nanoseconds>(
+                         end - begin)
+                            .count()
+                    / (1e6 * static_cast<double>(times))
+              << " ms per iteration." << std::endl;
 }
 
 void do_it(engine::kind engine_kind, memory::dim batch_size = 16) {

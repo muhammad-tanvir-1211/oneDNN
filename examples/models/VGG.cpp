@@ -280,7 +280,8 @@ void set_up_vgg(engine &eng, stream &s, std::vector<primitive> &net,
     std::vector<char> src_data(src_size * sizeof(float));
     std::vector<char> src_data_copied;
     src_data_copied.reserve(src_data.size() * BATCH);
-    std::string image_filename = "kangaroo.jpg.bin";
+    std::string image_filename = "/tmp/weights/samples/10.jpg.bin";
+    //std::string image_filename = "kangaroo.jpg.bin";
     read_binary_data(src_data.data(), src_size, image_filename);
     for (size_t i = 0; i < BATCH; i++) {
         std::copy(src_data.begin(), src_data.end(),
@@ -288,15 +289,15 @@ void set_up_vgg(engine &eng, stream &s, std::vector<primitive> &net,
     }
 
     auto tensor_tag = tag::any;
-    auto conv1_src_md_nchw = memory::desc(conv1_src_dims, dt::f32, tag::nchw);
-    auto conv1_src_memory_nchw = memory(conv1_src_md_nchw, eng);
-    write_to_dnnl_memory(src_data_copied.data(), conv1_src_memory_nchw);
+    auto conv1_src_md_nhwc = memory::desc(conv1_src_dims, dt::f32, tag::nhwc);
+    auto conv1_src_memory_nhwc = memory(conv1_src_md_nhwc, eng);
+    write_to_dnnl_memory(src_data_copied.data(), conv1_src_memory_nhwc);
 
     /* -------------- conv -> relu -> conv -> relu -> pool -------------- */
 
     auto conv1_dst_md = memory::desc(conv1_dst_dims, dt::f32, tensor_tag);
     STAMP_OUT_WEIGHTS_CONV(1, 1, conv1_weights_dims, conv1_bias_dims)
-    auto conv1_dst_memory = do_conv(eng, s, net, net_args, conv1_src_memory_nchw,
+    auto conv1_dst_memory = do_conv(eng, s, net, net_args, conv1_src_memory_nhwc,
                             weights_1_1.data(), biases_1_1.data(), 
                             conv1_weights_dims, conv1_bias_dims, 
                             conv1_strides, conv1_padding,
